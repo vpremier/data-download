@@ -6,12 +6,12 @@ Created on Fri Feb 10 14:14:03 2023
 @author: vpremier
 """
 
-from utils import (get_matching_landsat, download_landsat,
+from utils import (query_landsat, download_landsat,
                    get_matching_s2_cdse, download_s2_cdse)
 import os
 # ee = EarthExplorer('v.premier', 'landsat_290691')
-date_start = '2015-06-01'
-date_end = '2015-06-30'
+date_start = '2005-06-01'
+date_end = '2005-06-02'
 tile = '232084'
 
 # shapefile wth the AOI
@@ -26,12 +26,12 @@ outdir = r'/mnt/CEPH_PROJECTS/PROSNOW/MRI_Andes/Landsat_raw/Landsat-9/' + tile
 Landsat download
 """
 
-# username and password
+# username and token
 username = 'v.premier'
-psw = 'landsat_290691'
+token = 'hm@tcozYDxATL1iUYE7!xJ8qe4K7Gjt!!pRKLSisJGURFXaa2CqB_VFHvrBpuBSV'
 
-landsatList = get_matching_landsat(date_start, date_end, username, psw, 
-                                    shp = shp, max_cc=50, sat=['LC09'])
+results = query_landsat(date_start, date_end, username, token, 
+                                    shp = shp, max_cc=50)
 
 
 # for l in landsatList:

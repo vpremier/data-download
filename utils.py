@@ -6,13 +6,6 @@ Created on Fri May 12 14:08:02 2023
 @author: vpremier
 """
 
-# from usgsm2m.api import API
-# from usgsm2m.usgsm2m import USGSM2M
-
-# from sentinelsat import SentinelAPI, read_geojson, geojson_to_wkt
-# from collections import OrderedDict
-
-
 import subprocess
 import requests
 import os
@@ -26,22 +19,23 @@ from shapely.geometry import box
 
 import cgi
 import json
-import requests
 from getpass import getpass
 import sys
 import time
 import argparse
-import os
 import pandas as pd
 import warnings
 warnings.filterwarnings("ignore")
 
 
-# Send http request
 def sendRequest(url, data, apiKey = None, exitIfNoResponse = True):
     """
     Send a request to an M2M endpoint and returns the parsed JSON response.
-
+    This function is taken from 
+    https://m2m.cr.usgs.gov/api/docs/example/download_data-py
+    https://code.usgs.gov/eros-user-services/machine_to_machine/m2m_querying_metadatafilters
+    
+    
     Parameters:
     endpoint_url (str): The URL of the M2M endpoint
     payload (dict): The payload to be sent with the request
@@ -92,6 +86,38 @@ def sendRequest(url, data, apiKey = None, exitIfNoResponse = True):
 
 
 
+def prompt_ERS_login(serviceURL, username, token):
+    """
+    Log in to the EROS Registration Service (ERS)
+    https://ers.cr.usgs.gov/
+    
+    This function is adapted from 
+    https://code.usgs.gov/eros-user-services/machine_to_machine/m2m_landsat_9_search_download
+    
+    
+    Parameters:
+    serviceURL (str): The URL of the M2M endpoint
+    username (str): Your username
+    token (str): Your token. For generating it see: https://www.usgs.gov/media/files/m2m-application-token-documentation
+    
+    """  
+    
+    print("Logging in...\n")
+
+    # Use requests.post() to make the login request
+    response = requests.post(f"{serviceURL}login-token", json={'username': username, 'token': token})
+
+    # Check for successful response
+    if response.status_code == 200:  
+        apiKey = response.json()['data']
+        print('\nLogin Successful, API Key Received!')
+        headers = {'X-Auth-Token': apiKey}
+        return apiKey
+    else:
+        print("\nLogin was unsuccessful, please try again or create an account at: https://ers.cr.usgs.gov/register.")
+        
+        
+        
 def downloadfiles(downloadIds):
     downloadIds.append(download['downloadId'])
     print("    DOWNLOADING: " + download['url'])
@@ -110,41 +136,15 @@ def downloadfiles(downloadIds):
     
 
 
-def prompt_ERS_login(serviceURL, username, token):
-    print("Logging in...\n")
 
-    # Use requests.post() to make the login request
-    response = requests.post(f"{serviceUrl}login-token", json={'username': username, 'token': token})
 
-    # Check for successful response
-    if response.status_code == 200:  
-        apiKey = response.json()['data']
-        print('\nLogin Successful, API Key Received!')
-        headers = {'X-Auth-Token': apiKey}
-        return apiKey
-    else:
-        print("\nLogin was unsuccessful, please try again or create an account at: https://ers.cr.usgs.gov/register.")
-        
 
-def create_search_payload(datasetName, metadataFilter, acquisitionFilter):
-    # create search payload from input filters
-    search_payload = {
-        'maxResults': 10,
-        'datasetName' : datasetName,
-        'sceneFilter' : {
-            'metadataFilter': metadataFilter,
-            'acquisitionFilter' : acquisitionFilter,
-            'cloudCoverFilter' : {'min' : 0, 'max' : 50},
-        }
-    }
-    return search_payload
-
-def get_matching_landsat(date_start, date_end, username, psw, data_dir, shp = None,
+def query_landsat(date_start, date_end, username, token, shp = None,
                          max_cc = 90, sat = ['LT05','LE07','LC08','LC09']):
     
     """Returns list of matching Landsat scenes for a selected period and
         for a specific area (defined from a shapefile). The username and
-        password of your USGS EROS account are reuired. Please see
+        password of your USGS EROS account are required. Please see
         
         https://pypi.org/project/usgsm2m/
         https://m2m.cr.usgs.gov/
@@ -162,8 +162,8 @@ def get_matching_landsat(date_start, date_end, username, psw, data_dir, shp = No
         path to a shapefile with your area of interest. Any crs is accepted
     username : str
         username of your USCGS account
-    psw : str
-        password of your USCGS account
+    token : str
+        token from your USCGS account (see: https://www.usgs.gov/media/files/m2m-application-token-documentation)
     max_cc : int, optional
         maximum cloud coverage. Default is 90%
     sat : list, optional
@@ -172,21 +172,31 @@ def get_matching_landsat(date_start, date_end, username, psw, data_dir, shp = No
     
     Returns
     -------
-    sceneList : list
-        list of the matching landsat scenes
+    results : pd.DataFrame that contains:
+            - displayId
+            - entityId
     """
     
     
     serviceUrl = "https://m2m.cr.usgs.gov/api/api/json/stable/"
-    apiKey = prompt_ERS_login(serviceUrl, 'v.premier', 'hm@tcozYDxATL1iUYE7!xJ8qe4K7Gjt!!pRKLSisJGURFXaa2CqB_VFHvrBpuBSV')    
     
-    # Initialize a new API instance and get an access key
-    # api = API(username, psw)
+    # log in
+    apiKey = prompt_ERS_login(serviceUrl, username, token)    
+    
+
+    # Collection 2 Level 1 (Landsat): Dataset Alias for each satellite
+    satellite = {'LT05':'landsat_tm_c2_l1',
+                 'LE07':'landsat_etm_c2_l1',
+                 'LC08':'landsat_ot_c2_l1',
+                 'LC09':'landsat_ot_c2_l1'}
      
-    if shp is None:  
-        boundsdata=box(*[-180,-90,180, 90]).wkt
-        lat = 0
-        lon = 0
+    if shp is None:          
+        # Bounding Box Coordinates
+        lat_min = -90
+        lon_min = -180
+        lat_max = 180
+        lon_max = 90
+        
     else:
         #read the shapefile
         gdf = gpd.read_file(shp)
@@ -194,92 +204,60 @@ def get_matching_landsat(date_start, date_end, username, psw, data_dir, shp = No
         # convert crs (otherwise may result in an error)
         if not gdf.crs == 'EPSG:4326':
             gdf = gdf.to_crs('EPSG:4326')  
-            
-        # Extract the Bounding Box Coordinates
-        bounds = gdf.total_bounds
-    
-        # get the center of the AOI
-        # lat = (bounds[1] + bounds[3])/2
-        # lon = (bounds[0] + bounds[2])/2
-
-    
-    # Collection 2 Level 1 (Landsat)
-    satellite = {'LT05':'landsat_tm_c2_l1',
-                  'LE07':'landsat_etm_c2_l1',
-                  'LC08':'landsat_ot_c2_l1',
-                  'LC09':'landsat_ot_c2_l1'}
-    
-    # Request
-    sceneList = []   
-    for key in satellite:
         
+        # Bounding Box Coordinates
+        lat_min = gdf.bounds.miny[0]
+        lon_min = gdf.bounds.minx[0]
+        lat_max = gdf.bounds.maxy[0]
+        lon_max = gdf.bounds.maxx[0]
+        
+
+    # Request
+    results = []
+    for key in satellite:
         
         if key not in sat:
             continue
         
-        # datafilter_payload = {'datasetName': satellite[key]}
-        # datafilter_result = sendRequest(serviceUrl + "dataset-filters", datafilter_payload, apiKey)
-        # filterId = datafilter_result[5]['id']
-
-        # metadataFilter = {'filterType': 'value',
-        #                     'filterId': filterId,
-        #                     'value' : '5'}
-
+        # filter by date
         acquisitionFilter = {'start' : date_start, 'end' : date_end}
         
+        # filter spatially
         spatialFilter =  {'filterType' : 'mbr',
-                           'lowerLeft' : {'latitude' : gdf.bounds.miny[0],\
-                                          'longitude' : gdf.bounds.minx[0]},
-                          'upperRight' : { 'latitude' : gdf.bounds.maxy[0],\
-                                          'longitude' : gdf.bounds.maxx[0]}}
+                           'lowerLeft' : {'latitude' : lat_min,\
+                                          'longitude' : lon_min},
+                          'upperRight' : { 'latitude' : lat_max,\
+                                          'longitude' : lon_max}}
             
             
         scene_search  = {'datasetName': satellite[key],
+                         'maxResults':10000, # default is 100
                             'sceneFilter' : {
                                 'spatialFilter': spatialFilter,
                                 'cloudCoverFilter' : {'min' : 0, 'max' : max_cc},
                                 'acquisitionFilter' : acquisitionFilter,}
                             }
 
-            
-
-            
+        # send request
         scenes  = sendRequest(serviceUrl + "scene-search", scene_search, apiKey)
         
-        
-        sceneList = []
-        entityList = []
+
         for result in scenes['results']:
             # Add this scene to the list I would like to download
-            sceneList.append(result['displayId'])
-            entityList.append(result['entityId'])
-            
-
-
-                
-        # scenes = api.search(
-        #     dataset=satellite[key],
-        #     bbox=list(bounds),
-        #     start_date=date_start,
-        #     end_date=date_end,
-        #     max_cloud_cover=max_cc,
-        #     max_results=10000)
+            results.append({
+                'displayId': result['displayId'],
+                'entityId': result['entityId']
+            })
         
-        # append product id to the list
-        # for s in scenes:
-        #     scene_name = s['landsat_product_id']
-            
-        #     if scene_name[:4] in sat:
-        #         sceneList.append(scene_name)
     
-    landsat_sensor = [s.split('_')[0] for s in sceneList]
+    landsat_sensor = [r['displayId'].split('_')[0] for r in results]
     landsat_sensor = list(dict.fromkeys(landsat_sensor))  
     
-    tileList = [s.split('_')[2] for s in sceneList]
+    tileList = [r['displayId'].split('_')[2] for r in results]
     tileList = list(dict.fromkeys(tileList))  
     
     print('Found %i Landsat scenes from %s to %s with maximum cloud coverage %i%%' 
-          % (len(sceneList), date_start, date_end, max_cc))
+          % (len(results), date_start, date_end, max_cc))
     
     print('Found %i sensors: %s' 
           % (len(landsat_sensor), ', '.join(map(str, landsat_sensor))))
@@ -287,98 +265,13 @@ def get_matching_landsat(date_start, date_end, username, psw, data_dir, shp = No
     print('The shapefile intersects %i tiles (xxx path yyy row): %s' 
           % (len(tileList), ', '.join(map(str, tileList))))
     
-    
-    download_payload = {'datasetName' : satellite[key], 
-                    'entityIds' : entityList}
 
-    downloadOptions = sendRequest(serviceUrl + "download-options", download_payload, apiKey)
-
-    pd.json_normalize(downloadOptions)
-    
-    availableproducts = []
-    for product in downloadOptions:
-            # Make sure the product is available for this scene
-            if product['available'] == True and product['downloadSystem'] != 'folder':
-                    availableproducts.append({'entityId' : product['entityId'],
-                                       'productId' : product['id']})
-                
-    requestedDownloadsCount = len(availableproducts)
-
-    # set a label for the download request
-    label = "download-sample"
-    download_req_payload = {'downloads' : availableproducts,
-                                     'label' : label}
-    
-    requestResults = sendRequest(serviceUrl + "download-request", download_req_payload, apiKey)
-
-
-    if requestResults['preparingDownloads'] != None and len(requestResults['preparingDownloads']) > 0:
-        download_retrieve_payload = {'label' : label}
-        
-        print("Requesting for additional available download urls...")
-        moreDownloadUrls = sendRequest(serviceUrl + "download-retrieve", download_retrieve_payload, apiKey)
-    
-        downloadIds = []  
-    
-    
-    
-        print("\nDownloading from available downloads:")    
-        for download in moreDownloadUrls['available']:
-            if str(download['downloadId']) in requestResults['newRecords'] or str(download['downloadId']) in requestResults['duplicateProducts']:
-                downloadfiles(downloadIds)
-    
-    
-    
-    
-        print("\nDownloading from requested downloads:")        
-        for download in moreDownloadUrls['requested']:
-            if str(download['downloadId']) in requestResults['newRecords'] or str(download['downloadId']) in requestResults['duplicateProducts']:
-                downloadfiles(downloadIds)               
-    
-    
-    
-        # Didn't get all of the reuested downloads, call the download-retrieve method again probably after 30 seconds
-        while len(downloadIds) < (requestedDownloadsCount - len(requestResults['failed'])): 
-            preparingDownloads = requestedDownloadsCount - len(downloadIds) - len(requestResults['failed'])
-            print("    ", preparingDownloads, " downloads are not available. Waiting for 30 seconds...")
-            time.sleep(30)
-            print("    Trying to retrieve data after waiting for 30 seconds...")
-            moreDownloadUrls = sendRequest(serviceUrl + "download-retrieve", download_retrieve_payload, apiKey)
-            for download in moreDownloadUrls['available']:                            
-                if download['downloadId'] not in downloadIds and (str(download['downloadId']) in requestResults['newRecords'] or str(download['downloadId']) in requestResults['duplicateProducts']):
-                    downloadfiles(downloadIds)
-    
-    
-    else:
-        print("\nAll downloads are available to download. Retrieving...\n")# Get all available downloads
-        i = 0
-        for download in requestResults['availableDownloads']:
-            
-            print("DOWNLOADING: " + download['url'])
-            
-            downloadResponse = requests.get(download['url'], stream=True)
-    
-            # parse the filename from the Content-Disposition header
-            content_disposition = cgi.parse_header(downloadResponse.headers['Content-Disposition'])[1]
-            filename = os.path.basename(content_disposition['filename'])
-            filepath = os.path.join(data_dir, filename)
-    
-            # write the file to the destination directory
-            with open(filepath, 'wb') as f:
-                for data in downloadResponse.iter_content(chunk_size=8192):
-                    f.write(data)
-            i+=1
-            print(f"DOWNLOADED {filename} ({i}/{len(requestResults['availableDownloads'])})\n")
-            
-
-
-        
-    return sceneList
+    return pd.DataFrame(results)
 
 
 
-def download_landsat(landsatList, outdir, username, psw,
-                     tileList = None, tierList = None):
+def download_landsat(results, outdir, username, token,
+                     pathrowList = None, tierList = None):
     
     """Downloads a list of Landsat given as input. Possibility to filter 
         by tile and tier. The same credentials as function 
@@ -387,44 +280,145 @@ def download_landsat(landsatList, outdir, username, psw,
     
     Parameters
     ----------
-    landsatList : list
-        list of landsat scenes
+    results : pd.DataFrame
+        contains the list of landsat scenes to be downloaded. It is returned as
+        output by the function query_landsat
     outdir : str
         path where you want to save the archives
     username : str
         username of your USCGS account
-    psw : str
-        password of your USCGS account
-    tileList : list, optional
-        tiles (str) to download    
+    token : str
+        token from your USCGS account (see: https://www.usgs.gov/media/files/m2m-application-token-documentation)
+    pathrow : list, optional
+        path/row (str) to download    
     sat : list, optional
         tiers (str) to download 
     
     """
-    # access 
-    ee = USGSM2M(username, psw)
+    serviceUrl = "https://m2m.cr.usgs.gov/api/api/json/stable/"
     
-    for scene in landsatList:
-        # tile number
-        tile = os.path.basename(scene).split('_')[2]
+    # log in
+    apiKey = prompt_ERS_login(serviceUrl, username, token)    
+    
+    
+    satellite = {'LT05':'landsat_tm_c2_l1',
+                 'LE07':'landsat_etm_c2_l1',
+                 'LC08':'landsat_ot_c2_l1',
+                 'LC09':'landsat_ot_c2_l1'}
+    
+    # the download needs to be done for each satellite separately
+    results['satellite'] = results['displayId'].str.split('_').str[0]
+    results['pathrow'] = results['displayId'].str.split('_').str[2]
+    results['tier'] = results['displayId'].str.split('_').str[-1]
+
+    filtered = results.copy()
+
+    if pathrowList:
+        filtered = filtered[filtered['pathrow'].isin(pathrowList)]
+    
+    if tierList:
+        filtered = filtered[filtered['tier'].isin(tierList)]
+
+
+    # check if data have been already downloaded
+    if os.path.exists(outdir + scene + '.tar'):          
+        print(scene + ' already downloaded')
+            
+
+            
  
-        #tier 
-        tier = scene.split('_')[-1]
-          
-        if os.path.exists(outdir + scene + '.tar'):          
-            print(scene + ' already downloaded')
+                    
+                    
+    
+    for sat_id, group_df in filtered.groupby('satellite'):
+
+        download_payload = {'datasetName': satellite[sat_id],
+                            'entityIds' : [r for r in group_df['entityId']]}
+
+        downloadOptions = sendRequest(serviceUrl + "download-options", 
+                                      download_payload, 
+                                      apiKey)
+    
+        availableproducts = []
+        for product in downloadOptions:
+            # Make sure the product is available for this scene
+            if product['available'] == True and product['downloadSystem'] != 'folder':
+                    availableproducts.append({'entityId' : product['entityId'],
+                                       'productId' : product['id']})
+                
+        requestedDownloadsCount = len(availableproducts)
+
+        # set a label for the download request
+        label = "download-sample"
+        download_req_payload = {'downloads' : availableproducts,
+                                         'label' : label}
+        
+        requestResults = sendRequest(serviceUrl + "download-request", download_req_payload, apiKey)
+
+
+        if requestResults['preparingDownloads'] != None and len(requestResults['preparingDownloads']) > 0:
+            download_retrieve_payload = {'label' : label}
             
+            print("Requesting for additional available download urls...")
+            moreDownloadUrls = sendRequest(serviceUrl + "download-retrieve", download_retrieve_payload, apiKey)
+        
+            downloadIds = []  
+        
+        
+        
+            print("\nDownloading from available downloads:")    
+            for download in moreDownloadUrls['available']:
+                if str(download['downloadId']) in requestResults['newRecords'] or str(download['downloadId']) in requestResults['duplicateProducts']:
+                    downloadfiles(downloadIds)
+        
+        
+        
+        
+            print("\nDownloading from requested downloads:")        
+            for download in moreDownloadUrls['requested']:
+                if str(download['downloadId']) in requestResults['newRecords'] or str(download['downloadId']) in requestResults['duplicateProducts']:
+                    downloadfiles(downloadIds)               
+        
+        
+        
+            # Didn't get all of the reuested downloads, call the download-retrieve method again probably after 30 seconds
+            while len(downloadIds) < (requestedDownloadsCount - len(requestResults['failed'])): 
+                preparingDownloads = requestedDownloadsCount - len(downloadIds) - len(requestResults['failed'])
+                print("    ", preparingDownloads, " downloads are not available. Waiting for 30 seconds...")
+                time.sleep(30)
+                print("    Trying to retrieve data after waiting for 30 seconds...")
+                moreDownloadUrls = sendRequest(serviceUrl + "download-retrieve", download_retrieve_payload, apiKey)
+                for download in moreDownloadUrls['available']:                            
+                    if download['downloadId'] not in downloadIds and (str(download['downloadId']) in requestResults['newRecords'] or str(download['downloadId']) in requestResults['duplicateProducts']):
+                        downloadfiles(downloadIds)
+        
+        
         else:
-            
-            tile_cond = tileList is None or tile in tileList
-            tier_cond = tierList is None or tier in tierList
-            
-            if tile_cond and tier_cond:
-                try:
-                    ee.download([scene], output_dir = outdir)
-             
-                except:
-                    print('Error in downloading ' + scene)
+            print("\nAll downloads are available to download. Retrieving...\n")# Get all available downloads
+            i = 0
+            for download in requestResults['availableDownloads']:
+                
+                print("DOWNLOADING: " + download['url'])
+                
+                downloadResponse = requests.get(download['url'], stream=True)
+        
+                # parse the filename from the Content-Disposition header
+                content_disposition = cgi.parse_header(downloadResponse.headers['Content-Disposition'])[1]
+                filename = os.path.basename(content_disposition['filename'])
+                filepath = os.path.join(outdir, filename)
+        
+                # write the file to the destination directory
+                with open(filepath, 'wb') as f:
+                    for data in downloadResponse.iter_content(chunk_size=8192):
+                        f.write(data)
+                i+=1
+                print(f"DOWNLOADED {filename} ({i}/{len(requestResults['availableDownloads'])})\n")
+                
+                    
+                    
+                    
+                    
+                    
                     
                     
                     
