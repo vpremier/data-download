@@ -15,13 +15,14 @@ To securely manage your credentials, **store them in a `.env` file** — this ke
 
 In the **root** of your project, create a file named `.env` and add your credentials:
 
-\`\`\`env
+```env
 # .env
 ERS_USERNAME=xxxxx
 ERS_TOKEN=xxxxx
 CDSE_USERNAME=xxxxx
 CDSE_PASSWORD=xxxxx
-\`\`\`
+```
+
 
 👉 **Get your ERS token:** [USGS M2M Application Token Documentation](https://www.usgs.gov/media/files/m2m-application-token-documentation)
 
