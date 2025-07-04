@@ -30,13 +30,13 @@ CDSE_PASSWORD=xxxxx
 
 ## 📥 Cloning the Repository
 
-\`\`\`bash
+```bash
 git clone git@github.com:vpremier/data-download.git
 cd data-download/
 conda env create -f download.yml
 conda activate download
 spyder
-\`\`\`
+```
 
 Alternatively, create your own Conda environment and install the required libraries manually. Add any extra dependencies as needed.
 
