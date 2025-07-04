@@ -412,8 +412,10 @@ def download_landsat(results, outdir, username, token,
                     
                     
 
-           
-def query_cdse(date_start, date_end, username, psw, shp = None,
+
+
+def query_cdse(date_start, date_end, username, psw, 
+                         data_collection = "S2MSI1C", shp = None,
                          max_cc = 90, tile = None, filter_date = True):
     
     """Returns list of matching Sentinel-2 scenes for a selected period and
@@ -422,6 +424,7 @@ def query_cdse(date_start, date_end, username, psw, shp = None,
         Please see
         
         https://dataspace.copernicus.eu/
+        https://documentation.dataspace.copernicus.eu/APIs/On-Demand%20Production%20API.html
             
         Parameters
         ----------
@@ -435,6 +438,8 @@ def query_cdse(date_start, date_end, username, psw, shp = None,
             username of your CDSE account
         psw : str
             password of your CDSE account
+        data_collection : str
+            default is "S2MSI1C" that refers to the Sentinel-2 L1C data
         max_cc : int, optional
             maximum cloud coverage. Default is 90%
         tile : str, optional
@@ -447,6 +452,19 @@ def query_cdse(date_start, date_end, username, psw, shp = None,
         products : list
             list of the matching scenes
     """   
+    
+    # Define supported data collections
+    allowed_collections = ["S2MSI1C", "SY_2_SYN___", "LANDSAT-5", "LANDSAT-7", "LANDSAT-8-ESA"]
+    
+    if data_collection not in allowed_collections:
+        print(f"Allowed data collections: {allowed_collections}")
+        print(f"You provided: '{data_collection}'")
+        raise ValueError(f"Invalid data_collection: '{data_collection}'. Please use one of the allowed options.")
+
+    else:
+        print(f"Using data collection: '{data_collection}'")
+        print(f"Allowed data collections: {allowed_collections}")
+    
 
     # access to the Copernicus Dataspce ecosystem
     data = {
@@ -481,10 +499,9 @@ def query_cdse(date_start, date_end, username, psw, shp = None,
     
 
 
-    data_collection = "S2MSI1C"
 
-    # query
-    if tile is None:
+    # query for SENTINEL-2 or SENTINEL-3 data
+    if data_collection == 'S2MSI1C' or data_collection=='SY_2_SYN___':
         query = ('').join([f"https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$filter=",
                            "Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'productType'",
                            " and att/OData.CSC.StringAttribute/Value eq '",
@@ -500,31 +517,46 @@ def query_cdse(date_start, date_end, username, psw, shp = None,
                             "T00:00:00.000Z and ContentDate/Start lt ",
                             date_end,
                             "T00:00:00.000Z&$top=1000"])
-    else:     
-        query = ('').join([f"https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$filter=",
-                           "contains(Name,'",
-                           tile,
-                           "') and Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'productType'",
-                           " and att/OData.CSC.StringAttribute/Value eq '",
-                           data_collection,
-                           "')",
-                           " and Attributes/OData.CSC.DoubleAttribute/any(att:att/Name eq 'cloudCover'",
-                           " and att/OData.CSC.DoubleAttribute/Value lt ",
-                            str(max_cc),
-                            ") and OData.CSC.Intersects(area=geography'SRID=4326;",
-                            boundsdata,
-                            "') and ContentDate/Start gt ",
-                            date_start,
-                            "T00:00:00.000Z and ContentDate/Start lt ",
-                            date_end,
-                            "T00:00:00.000Z&$top=1000"])
+        if tile:   
+            query = ('').join([f"https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$filter=",
+                               "contains(Name,'",
+                               tile,
+                               "') and Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'productType'",
+                               " and att/OData.CSC.StringAttribute/Value eq '",
+                               data_collection,
+                               "')",
+                               " and Attributes/OData.CSC.DoubleAttribute/any(att:att/Name eq 'cloudCover'",
+                               " and att/OData.CSC.DoubleAttribute/Value lt ",
+                                str(max_cc),
+                                ") and OData.CSC.Intersects(area=geography'SRID=4326;",
+                                boundsdata,
+                                "') and ContentDate/Start gt ",
+                                date_start,
+                                "T00:00:00.000Z and ContentDate/Start lt ",
+                                date_end,
+                                "T00:00:00.000Z&$top=1000"])
+            
+            
+    elif data_collection in ["LANDSAT-5","LANDSAT-7","LANDSAT-8-ESA"]:
+        query = ('').join([
+            f"https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$filter=",
+            "Collection/Name eq '", data_collection, "'",
+            " and Attributes/OData.CSC.DoubleAttribute/any(att:att/Name eq 'cloudCover'",
+            " and att/OData.CSC.DoubleAttribute/Value lt ", str(max_cc), ")",
+            " and OData.CSC.Intersects(area=geography'SRID=4326;", boundsdata, "')",
+            " and ContentDate/Start gt ", date_start, "T00:00:00.000Z",
+            " and ContentDate/Start lt ", date_end, "T00:00:00.000Z",
+            "&$top=1000"
+        ])
+
+        
 
     json = requests.get(query).json()
     
     products = pd.DataFrame.from_dict(json['value'])
     
      
-    if filter_date:
+    if filter_date and not products.empty:
         # keep last processing date ( or newest Processing Baseline Nxxxx)
         
         products["commonName"] = [('_').join([f.split('_')[i] for i in[0,1,2,4,5]]) for f in products['Name']]
@@ -536,12 +568,14 @@ def query_cdse(date_start, date_end, username, psw, shp = None,
         products = products_fltd
         products_fltd = products_fltd.reset_index(drop=True, inplace=True)
     
-    print('Found %i Sentinel-2 scenes from %s to %s with maximum cloud coverage %i%%' 
-          % (len(products),date_start, date_end, max_cc))
+    print('Found %i %s scenes from %s to %s with maximum cloud coverage %i%%' 
+          % (len(products),data_collection, date_start, date_end, max_cc))
     
     
     
     return products
+
+
 
 
 

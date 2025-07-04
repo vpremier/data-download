@@ -48,7 +48,7 @@ results = query_landsat(date_start,
 Sentinel-2 download
 """
 
-
+# it is possible to query also other collection (default is S2MSI1C)
 s2List = query_cdse(date_start, 
                               date_end, 
                               os.getenv("CDSE_USERNAME"), 
