@@ -31,10 +31,6 @@ outdir = r'/mnt/CEPH_PROJECTS/PROSNOW/MRI_Andes/Landsat_raw/Landsat-9/' + tile
 Landsat download
 """
 
-# username and token
-username = 'v.premier'
-token = 'hm@tcozYDxATL1iUYE7!xJ8qe4K7Gjt!!pRKLSisJGURFXaa2CqB_VFHvrBpuBSV'
-
 results = query_landsat(date_start, 
                         date_end, 
                         os.getenv("ERS_USERNAME"), 
@@ -53,10 +49,6 @@ Sentinel-2 download
 """
 
 
-
-# Copernicus Database Ecosystem
-username = "valentina.premier@eurac.edu"
-psw = "Openeo_290691"
 s2List = query_cdse(date_start, 
                               date_end, 
                               os.getenv("CDSE_USERNAME"), 
