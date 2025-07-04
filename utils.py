@@ -10,21 +10,16 @@ import subprocess
 import requests
 import os
 import geopandas as gpd
-from datetime import datetime as dt
 import pandas as pd
-from zipfile import ZipFile
 from datetime import datetime
 from tqdm import tqdm
 from shapely.geometry import box
-
 import cgi
 import json
-from getpass import getpass
 import sys
 import time
-import argparse
-import pandas as pd
 import warnings
+
 warnings.filterwarnings("ignore")
 
 
@@ -311,7 +306,14 @@ def download_landsat(results, outdir, username, token,
     results['pathrow'] = results['displayId'].str.split('_').str[2]
     results['tier'] = results['displayId'].str.split('_').str[-1]
 
-    filtered = results.copy()
+
+    results['already_downloaded'] = results['displayId'].apply(
+        lambda scene: os.path.exists(os.path.join(outdir, scene + '.tar'))
+    )
+
+    filtered = results[~results['already_downloaded']].copy()
+
+
 
     if pathrowList:
         filtered = filtered[filtered['pathrow'].isin(pathrowList)]
@@ -319,15 +321,8 @@ def download_landsat(results, outdir, username, token,
     if tierList:
         filtered = filtered[filtered['tier'].isin(tierList)]
 
-
-    # check if data have been already downloaded
-    if os.path.exists(outdir + scene + '.tar'):          
-        print(scene + ' already downloaded')
-            
-
-            
- 
-                    
+    print(f"Already downloaded: {results['already_downloaded'].sum()} scenes")
+    print(f"To download: {len(filtered)} scenes")
                     
     
     for sat_id, group_df in filtered.groupby('satellite'):
@@ -416,207 +411,9 @@ def download_landsat(results, outdir, username, token,
                 
                     
                     
-                    
-                    
-                    
-                    
-                    
-                    
-def get_matching_s2(date_start, date_end, shp, username, psw,
-                  max_cc = 90, tile = None, RON = None, filter_date = True):
-    
-    """Returns list of matching Sentinel-2 scenes for a selected period and
-        for a specific area (defined from a shapefile). The username and
-        password of your Copernicus Open Access Hub account are reuired. 
-        Please see
-        
-        https://pypi.org/project/usgsm2m/
-        https://m2m.cr.usgs.gov/
-        
-
-    
-    Parameters
-    ----------
-    date_start : str
-        starting date
-    date_end : str
-        ending date
-    shp : str 
-        path to a shapefile with your area of interest. Any crs is accepted
-    username : str
-        username of your Copernicus account
-    psw : str
-        password of your Copernicus account
-    max_cc : int, optional
-        maximum cloud coverage. Default is 90%
-    tile : str, optional
-        specific tile to be downloaded
-    
-    Returns
-    -------
-    products : list
-        list of the matching scenes
-    """   
-
-    api = SentinelAPI(username, psw)
-    
-    # search by polygon, time, and SciHub query keywords
-    gdf = gpd.read_file(shp)
-    
-    # convert crs (otherwise may result in an error)
-    if not gdf.crs == 'EPSG:4326':
-        gdf = gdf.to_crs('EPSG:4326') 
-    bounds = gdf.envelope
-    boundsdata = bounds[0].wkt
-    
-    # change format dates
-    date_start_dt = dt.strptime(date_start, "%Y-%m-%d")
-    date_end_dt = dt.strptime(date_end, "%Y-%m-%d")
-    
-    
-    products = OrderedDict()
-    
-    query_kwargs = {
-            'area':boundsdata,
-            'platformname': 'Sentinel-2',
-            'producttype': 'S2MSI1C',
-            'date': (date_start_dt, date_end_dt),
-            'cloudcoverpercentage':(0, max_cc)}
-    
-    if tile is not None: 
-        query_kwargs['tileid'] = tile
-    
-    if RON is not None: 
-        query_kwargs['relativeorbitnumber'] = RON
-        
-    pp = api.query(**query_kwargs)
-    products.update(pp)
-     
-    tileList = [products[key]['tileid'] for key in products]
-    tileList = list(dict.fromkeys(tileList))
-    
-    if filter_date:
-        nameList = [products[key]['filename'] for key in products]
-        commonName = [('_').join(f.split('_')[:6]) for f in nameList]
-        
-        df = pd.DataFrame(columns=['commonName','nameList'])  
-        df['commonName'] = commonName
-        df['nameList'] = nameList
-        df = df.sort_values(by='nameList')
-        df_fltd = df.drop_duplicates(subset='commonName', keep='last')
-        dropped = pd.concat([df, df_fltd]).drop_duplicates(keep=False)
-
-        products_fltd = products.copy()
-        for k in products:
-            if products[k]['filename'] in dropped.nameList.values:
-                products_fltd.popitem(k)
-        
-        products = products_fltd
-    
-    print('Found %i Sentinel-2 scenes from %s to %s with maximum cloud coverage %i%%' 
-          % (len(products),date_start, date_end, max_cc))
-    
-    print('The shapefile intersects %i tiles: %s' 
-          % (len(tileList), ', '.join(map(str, tileList))))
-    
-    
-    return products
- 
-    
-
-def download_s2(s2List, outdir, username, psw, totp):
-    """Downloads a list of Sentinel-2 given as input. Credentials 
-        from CREODIAS: please check
-        
-        https://creodias.eu/eo-data-catalogue-api-manual
-        
-        To make it working, run the following command from a terminal
-            KEYCLOAK_TOKEN=$(curl -s --location --request POST 'https://identity.cloudferro.com/auth/realms/dias/protocol/openid-connect/token' \
-                --data-urlencode 'grant_type=password' \
-                --data-urlencode 'username=<USER>' \
-                --data-urlencode 'password=<PASSWORD>' \
-                --data-urlencode 'client_id=CLOUDFERRO_PUBLIC'|jq .access_token|tr -d '"')
-        
-        after replacing with your username and password.
-    
-        
-    
-    Parameters
-    ----------
-    s2List : list
-        list of Sentinel-2 scenes (organised as in the output of function
-                                   get_matching_s2() )
-    outdir : str
-        path where you want to save the archives
-    username : str
-        username of your CREODIAS account
-    psw : str
-        password of your CREODIAS account
-    
-    """
-    
-    cmd_str = ('').join(['''
-            curl -s --location \
-            --request POST 'https://identity.cloudferro.com/auth/realms/Creodias-new/protocol/openid-connect/token' \
-            --data-urlencode 'grant_type=password' \
-            --data-urlencode 'username=%s' ''' %username,
-            '''--data-urlencode 'password=%s' ''' %psw,
-            '''--data-urlencode 'totp=%s' ''' %totp,
-            '''--data-urlencode 'client_id=CLOUDFERRO_PUBLIC'|jq .access_token|tr -d '"' '''])
-    result=subprocess.run(cmd_str, shell=True, stdout=subprocess.PIPE)
-    token = result.stdout.decode('utf-8')[:-1]
-           
-           
-    for scene in s2List:
-        
-        fileName = s2List[scene]['filename']
-        
-        # query by name 
-        url = ('').join(["https://datahub.creodias.eu/odata/v1/Products?$filter=Name eq ",
-                        "'",
-                        fileName,
-                        "'"])
-        
-        # A GET request to the API
-        response = requests.get(url)
-        
-        # response
-        response_json = response.json()
-        
-        outname = outdir + os.sep +  fileName.replace('.SAFE','.zip')
-        
-        if os.path.exists(outname) and os.stat(outname).st_size>0:
-            print('%s already downloaded' %fileName.replace('.SAFE','.zip'))
-        
-        else:
-            # bash command for authentication and download
-            # cmd_str = ('').join(['''
-            #         wget  --header "Authorization: Bearer $(curl -s --location \
-            #         --request POST 'https://identity.cloudferro.com/auth/realms/Creodias-new/protocol/openid-connect/token' \
-            #         --data-urlencode 'grant_type=password' \
-            #         --data-urlencode 'username=%s' ''' %username,
-            #         '''--data-urlencode 'password=%s' ''' %psw,
-            #         '''--data-urlencode 'totp=%s' ''' %totp,
-            #         '''--data-urlencode 'client_id=CLOUDFERRO_PUBLIC'|jq .access_token|tr -d '"')" ''',
-            #         " 'http://datahub.creodias.eu/odata/v1/Products(",
-            #         response_json['value'][0]['Id'],
-            #         ")/$value' -O ",
-            #         outname])
-            # subprocess.run(cmd_str, shell=True)
-                
-             cmd_str = ('').join(['''
-                     wget  --header "Authorization: Bearer ''',
-                     token,
-                     '''" 'http://datahub.creodias.eu/odata/v1/Products(''',
-                     response_json['value'][0]['Id'],
-                     ")/$value' -O ",
-                     outname])
-             subprocess.run(cmd_str, shell=True)
-
-
 
            
-def get_matching_s2_cdse(date_start, date_end, username, psw, shp = None,
+def query_cdse(date_start, date_end, username, psw, shp = None,
                          max_cc = 90, tile = None, filter_date = True):
     
     """Returns list of matching Sentinel-2 scenes for a selected period and
@@ -749,7 +546,7 @@ def get_matching_s2_cdse(date_start, date_end, username, psw, shp = None,
 
 
 
-def download_s2_cdse(s2List, outdir, username, psw):
+def download_cdse(s2List, outdir, username, psw):
     """Downloads a list of Sentinel-2 given as input. Credentials 
         from CDSE: please check
         
