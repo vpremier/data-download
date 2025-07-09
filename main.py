@@ -88,16 +88,21 @@ def run_query_download(config_path):
     
 if __name__ == "__main__":    
     
-    start_time = time.time()
-        
-    config_path = './config.json'
-    run_query_download(config_path)
+    if len(sys.argv) != 2:
+        print("Usage: python main.py path_to_config.json")
+    else:
+        config_path = sys.argv[1]
+        start_time = time.time()
     
-    end_time = time.time()
-    elapsed = end_time - start_time
-    elapsed_min = int(elapsed // 60)
-    elapsed_sec = int(elapsed % 60)
+        run_query_download(config_path)
+    
+        end_time = time.time()
+        elapsed = end_time - start_time
+        elapsed_min = int(elapsed // 60)
+        elapsed_sec = int(elapsed % 60)
+    
+        config = load_config(config_path)
+        
+        print("\nThe download run succefully.")
+        print(f"Execution time: {elapsed_min} minutes and {elapsed_sec} seconds")
 
-    # config = load_config(config_path)
-    print("\nThe hr-preprocessing run succefully.")
-    print(f"Execution time: {elapsed_min} minutes and {elapsed_sec} seconds")
