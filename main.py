@@ -76,10 +76,7 @@ def run_query_download(config_path):
         download_cdse(s2List, outdir, os.getenv("CDSE_USERNAME"), os.getenv("CDSE_PASSWORD"))
         
         
-    # creare tante cartelle quante le tile
-    
-    # filtro per tile?
-    
+
     # check the config
 
     

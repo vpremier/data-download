@@ -67,34 +67,19 @@ Before running this script, you **must configure** your `config.json` file.
 
 Your `config.json` should include:
 
-```json
-{
-  "shapefile": "path/to/your/aoi.shp",
-  "output_directory": "path/to/output_directory",
-  "date_start": "YYYY-MM-DD",
-  "date_end": "YYYY-MM-DD",
-  "query_landsat": true,
-  "query_sentinel2": true,
-  "download_landsat": true,
-  "download_sentinel2": true,
-  "max_cloudcover": 20,
-  "landsat_satellite": ["LT05", "LE07", "LC08", "LC09"],
-  "s2_tile_list": ["tile_id_1", "tile_id_2"],
-  "landsat_tile_list": ["path/row_1", "path/row_2"]
-}
-```
+### 🗂️ **`config.json` — Required Parameters**
 
-**Parameters:**
-
-- `shapefile`: Path to a shapefile containing your Area of Interest (AOI).
-- `output_directory`: Main output directory.
-- `date_start` / `date_end`: Date range for querying data.
-- `query_landsat` / `query_sentinel2`: Enable/disable querying for Landsat or Sentinel-2 products.
-- `download_landsat` / `download_sentinel2`: Enable/disable downloading Landsat or Sentinel-2 products.
-- `max_cloudcover`: Maximum allowed cloud cover percentage.
-- `landsat_satellite`: List of Landsat sensors to include (`LT05`, `LE07`, `LC08`, `LC09`).
-- `s2_tile_list`: (Optional) List of specific Sentinel-2 tiles to download.
-- `landsat_tile_list`: (Optional) List of specific Landsat path/row IDs to download.
+| Parameter            | Description                                                                 |
+|----------------------|-----------------------------------------------------------------------------|
+| `shapefile`          | Path to a shapefile containing your Area of Interest (AOI).                 |
+| `output_directory`   | Main output directory.                                                      |
+| `date_start` / `date_end` | Date range for querying data (format: YYYY-MM-DD).                   |
+| `query_landsat` / `query_sentinel2` | Enable/disable querying for Landsat or Sentinel-2 products. |
+| `download_landsat` / `download_sentinel2` | Enable/disable downloading Landsat or Sentinel-2 products. |
+| `max_cloudcover`     | Maximum allowed cloud cover percentage (int).                                     |
+| `landsat_satellite`  | List of Landsat sensors to include (`LT05`, `LE07`, `LC08`, `LC09`).        |
+| `s2_tile_list`       | List of specific Sentinel-2 tiles to download (`[]`=all tiles).                    |
+| `landsat_tile_list`  | List of specific Landsat path/row IDs to download (`[]`=all tiles).               |
 
 For more details and additional filter options, check the functions in `landsat_query_download.py` and `sentinel2_query_download.py`.
 
@@ -138,15 +123,5 @@ output_directory/
 - **Sentinel-2:** Subfolders by tile ID.
 - **Landsat:** Subfolders by sensor (e.g., `LT05`, `LC08`), then by path/row.
 
----
 
-## ✅ **Tips**
-
-- Always double-check your `.env` file for correct credentials.
-- Ensure your AOI shapefile is valid.
-- Adjust cloud cover and date ranges to refine your search.
-
----
-
-**Happy downloading! 🚀**
 
