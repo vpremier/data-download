@@ -170,8 +170,6 @@ def query_cdse(date_start, date_end, username, psw,
         products = products_fltd
         products_fltd = products_fltd.reset_index(drop=True, inplace=True)
     
-    products['tile'] = products['Name'].str.split('_').str[5]
-    tiles = products['tile'].unique().tolist()
 
     print('\n' + '='*60)
     print(f'{data_collection} Query Summary')
@@ -180,8 +178,12 @@ def query_cdse(date_start, date_end, username, psw,
     print('Found %i %s scenes from %s to %s with maximum cloud coverage %i%%\n'
           % (len(products), data_collection, date_start, date_end, max_cc))
     
-    print('The shapefile intersects %i tiles:\n  %s\n'
-      % (len(tiles), ', '.join(tiles)))
+    if not products.empty:
+        products['tile'] = products['Name'].str.split('_').str[5]
+        tiles = products['tile'].unique().tolist()
+
+        print('The shapefile intersects %i tiles:\n  %s\n'
+          % (len(tiles), ', '.join(tiles)))
     
     print('='*60 + '\n')
 
@@ -299,8 +301,8 @@ if __name__ == "__main__":
     
     
     # dates for the query/download
-    date_start = '2005-06-01'
-    date_end = '2005-06-02'
+    date_start = '2025-06-01'
+    date_end = '2025-06-03'
     
     
     tile = 'T30SVF'
@@ -314,12 +316,12 @@ if __name__ == "__main__":
     
     # it is possible to query also other collection (default is S2MSI1C)
     s2List = query_cdse(date_start, 
-                                  date_end, 
-                                  os.getenv("CDSE_USERNAME"), 
-                                  os.getenv("CDSE_PASSWORD"), 
-                                  shp=shp,
-                                  max_cc = 90, 
-                                  tile=tile, 
-                                  filter_date = False) 
+                        date_end, 
+                        os.getenv("CDSE_USERNAME"), 
+                        os.getenv("CDSE_PASSWORD"), 
+                        shp=shp,
+                        max_cc = 90, 
+                        tile=tile, 
+                        filter_date = False) 
     
     # download_cdse(s2List, outdir, os.getenv("CDSE_USERNAME"), os.getenv("CDSE_PASSWORD"))      
