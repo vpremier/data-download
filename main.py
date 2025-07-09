@@ -1,67 +1,105 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Feb 10 14:14:03 2023
+Created on Wed Jul  9 09:57:13 2025
 
 @author: vpremier
 """
 
-from utils import (query_landsat, download_landsat,
-                   query_cdse, download_cdse)
 import os
-
+import time
 from dotenv import load_dotenv
 load_dotenv()
 
+from landsat_query_download import *
+from sentinel2_query_download import *
+from utils import *
 
-# dates for the query/download
-date_start = '2005-06-01'
-date_end = '2005-06-02'
+def run_query_download(config_path):
+    
+    config = load_config(config_path)
+    
+    # flags
+    landsat_query = config["query_landsat"]
+    sentinel2_query = config["query_sentinel2"]
+    
+    landsat_download = config["download_landsat"]
+    sentinel2_download = config["download_sentinel2"]
+    
+    
+    outdir = config["output_directory"]
+    
+    date_start = config["date_start"]
+    date_end = config["date_end"]
+    
+    shp = config["shapefile"]
+    
+    max_cc = config["max_cloudcover"]
+    
+    landsat_satellite = config["landsat_satellite"]
+    
 
+    s2_tile_list = config["s2_tile_list"]
+    landsat_tile_list = config["landsat_tile_list"]
+    
+    
+    if landsat_query:
 
-tile = '200034'
+        results = query_landsat(date_start, 
+                                date_end, 
+                                os.getenv("ERS_USERNAME"), 
+                                os.getenv("ERS_TOKEN"), 
+                                shp = shp, 
+                                max_cc=max_cc,
+                                sat = landsat_satellite)
+        
+    if sentinel2_query:
 
-# shapefile wth the AOI
-shp = r'/mnt/CEPH_PROJECTS/OEMC/CODE/cdse_download/SierraNevada/SierraNevada.shp'
-
-# directory where you want to download your data
-outdir = r'/mnt/CEPH_PROJECTS/PROSNOW/MRI_Andes/Landsat_raw/Landsat-9/' + tile
-
-"""
-Landsat download
-"""
-
-results = query_landsat(date_start, 
-                        date_end, 
-                        os.getenv("ERS_USERNAME"), 
-                        os.getenv("ERS_TOKEN"), 
-                        shp = shp, 
-                        max_cc=50)
-
-
-# download_landsat(results, outdir, os.getenv("ERS_USERNAME"), 
-#                     os.getenv("ERS_TOKEN"), pathrowList = ['200034'], tierList = ['T1'])
-
-
-
-"""
-Sentinel-2 download
-"""
-
-# it is possible to query also other collection (default is S2MSI1C)
-s2List = query_cdse(date_start, 
-                              date_end, 
-                              os.getenv("CDSE_USERNAME"), 
-                              os.getenv("CDSE_PASSWORD"), 
-                              shp=shp,
-                              max_cc = 90, 
-                              tile=tile, 
-                              filter_date = False) 
-
-# download_cdse(s2List, outdir, os.getenv("CDSE_USERNAME"), os.getenv("CDSE_PASSWORD"))
-
-
+        s2List = query_cdse(date_start, 
+                            date_end, 
+                            os.getenv("CDSE_USERNAME"), 
+                            os.getenv("CDSE_PASSWORD"), 
+                            shp=shp,
+                            max_cc = max_cc, 
+                            tile=s2_tile_list, 
+                            filter_date = True) 
+    
+    if landsat_download:
+                
+        download_landsat(results, outdir, os.getenv("ERS_USERNAME"), 
+                            os.getenv("ERS_TOKEN"), 
+                            pathrowList = landsat_tile_list, 
+                            tierList = ['T1'])
+    
+    if sentinel2_download:
+        
+        download_cdse(s2List, outdir, os.getenv("CDSE_USERNAME"), os.getenv("CDSE_PASSWORD"))
+        
+        
+    # creare tante cartelle quante le tile
+    
+    # filtro per tile?
+    
+    # check the config
 
     
 
+    
+    
+    
+    
+if __name__ == "__main__":    
+    
+    start_time = time.time()
+        
+    config_path = './config.json'
+    run_query_download(config_path)
+    
+    end_time = time.time()
+    elapsed = end_time - start_time
+    elapsed_min = int(elapsed // 60)
+    elapsed_sec = int(elapsed % 60)
 
+    # config = load_config(config_path)
+    print("\nThe hr-preprocessing run succefully.")
+    print(f"Execution time: {elapsed_min} minutes and {elapsed_sec} seconds")

@@ -1,0 +1,14 @@
+{ 
+  "shapefile": "/mnt/CEPH_PROJECTS/OEMC/CODE/cdse_download/SierraNevada/SierraNevada.shp",
+  "output_directory": "/mnt/CEPH_PROJECTS/SNOWCOP/Vale/test_codice",
+  "date_start": "2025-01-01",
+  "date_end": "2025-01-03",
+  "query_landsat": true,
+  "query_sentinel2": true,
+  "download_landsat": true,
+  "download_sentinel2": true,
+  "max_cloudcover": 90,
+  "landsat_satellite": [],
+  "s2_tile_list": [],
+  "landsat_tile_list": []
+}
