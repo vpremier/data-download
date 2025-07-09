@@ -56,7 +56,7 @@ Alternatively, you can create your own Conda environment and install the require
 To run the full processing pipeline, use the provided bash script:
 
 ```bash
-bash ./run_hr_processing.sh
+bash ./run_download.sh
 ```
 
 Before running this script, you **must configure** your `config.json` file.
