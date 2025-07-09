@@ -18,7 +18,8 @@ from utils import *
 def run_query_download(config_path):
     
     config = load_config(config_path)
-    
+    check_config_consistency(config)
+
     # flags
     landsat_query = config["query_landsat"]
     sentinel2_query = config["query_sentinel2"]

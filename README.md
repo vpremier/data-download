@@ -67,7 +67,6 @@ Before running this script, you **must configure** your `config.json` file.
 
 Your `config.json` should include:
 
-### 🗂️ **`config.json` — Required Parameters**
 
 | Parameter            | Description                                                                 |
 |----------------------|-----------------------------------------------------------------------------|
