@@ -357,7 +357,7 @@ def download_landsat(results, outdir, username, token,
 
         availableproducts = []
         for product in downloadOptions:
-            if product['available'] and product['downloadSystem'] != 'folder':
+            if product['available'] and product['downloadSystem'] == 'ls_zip':
                 availableproducts.append({
                     'entityId': product['entityId'],
                     'productId': product['id']
@@ -466,8 +466,8 @@ if __name__ == "__main__":
                             max_cc=50)
     
     
-    # download_landsat(results, outdir, os.getenv("ERS_USERNAME"), 
-    #                     os.getenv("ERS_TOKEN"), pathrowList = ['200034'], tierList = ['T1'])
+    download_landsat(results, outdir, os.getenv("ERS_USERNAME"), 
+                        os.getenv("ERS_TOKEN"), pathrowList = ['200034'], tierList = ['T1'])
     
     
     

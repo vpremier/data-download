@@ -12,7 +12,7 @@ conda activate download
 SCRIPT_PATH="./main.py"
 CONFIG_PATH="./config.json"
 
-echo "Running the optical preprocessing..."
+echo "Running the download script..."
 python "$SCRIPT_PATH" "$CONFIG_PATH"
 
 echo "Done DK."
