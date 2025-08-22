@@ -14,6 +14,8 @@ import json
 import sys
 import time
 
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 
 def sendRequest(url, data, apiKey = None, exitIfNoResponse = True):
@@ -104,22 +106,48 @@ def prompt_ERS_login(serviceURL, username, token):
     else:
         print("\nLogin was unsuccessful, please try again or create an account at: https://ers.cr.usgs.gov/register.")
        
-        
 
-def downloadfiles(downloadIds):
-    downloadIds.append(download['downloadId'])
+
+def downloadfiles(download):
+    # Set up retry logic
+    session = requests.Session()
+    retries = Retry(
+        total=5,
+        backoff_factor=1,
+        status_forcelist=[500, 502, 503, 504],
+        allowed_methods=["GET"]
+    )
+    session.mount('http://', HTTPAdapter(max_retries=retries))
+    session.mount('https://', HTTPAdapter(max_retries=retries))
+    
+    downloadId = download['downloadId']
     print("    DOWNLOADING: " + download['url'])
-    downloadResponse = requests.get(download['url'], stream=True)
 
-    # parse the filename from the Content-Disposition header
-    content_disposition = cgi.parse_header(downloadResponse.headers['Content-Disposition'])[1]
-    filename = os.path.basename(content_disposition['filename'])
-    filepath = os.path.join(data_dir, filename)
+    try:
+        # Request the file
+        with session.get(download['url'], stream=True, timeout=60) as response:
+            response.raise_for_status()  # Raise HTTPError for bad responses
 
-    # write the file to the destination directory
-    with open(filepath, 'wb') as f:
-        for data in downloadResponse.iter_content(chunk_size=8192):
-            f.write(data)
+            # Parse filename
+            content_disposition = cgi.parse_header(response.headers.get('Content-Disposition', ''))[1]
+            filename = os.path.basename(content_disposition.get('filename', f'download_{downloadId}'))
+            filepath = os.path.join('data_dir', filename)  # Change 'data_dir' as needed
+
+            # Write to file in chunks
+            with open(filepath, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192, decode_unicode=False):
+                    if chunk:  # filter out keep-alive chunks
+                        f.write(chunk)
+
+        print(f"    SAVED: {filepath}")
+        return filepath
+
+    except requests.exceptions.RequestException as e:
+        print(f"    FAILED TO DOWNLOAD: {download['url']}")
+        print(f"    ERROR: {e}")
+        return None
+
+
 
 
 

@@ -1,8 +1,8 @@
 { 
   "shapefile": "/mnt/CEPH_PROJECTS/PROSNOW/1.data/shapefile/Dischma/Dischma.shp",
-  "output_directory": "/mnt/CEPH_PROJECTS/PROSNOW/raw_data/Landsat",
-  "date_start": "2020-09-01",
-  "date_end": "2021-09-01",
+  "output_directory": "/mnt/CEPH_PROJECTS/PROSNOW/raw_data",
+  "date_start": "2022-09-01",
+  "date_end": "2024-09-01",
   "query_landsat": true,
   "query_sentinel2": false,
   "download_landsat": true,
@@ -10,5 +10,5 @@
   "max_cloudcover": 80,
   "landsat_satellite": [],
   "s2_tile_list": [],
-  "landsat_tile_list": []
+  "landsat_tile_list": ["193028", "194027"]
 }
