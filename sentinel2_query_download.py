@@ -12,13 +12,17 @@ import geopandas as gpd
 import pandas as pd
 from datetime import datetime
 from tqdm import tqdm
-from shapely.geometry import box
+from shapely.geometry import box, shape
 
 
+import matplotlib.pyplot as plt
+
+from sentinel_filters import *
 
 def query_cdse(date_start, date_end, username, psw, 
                          data_collection = "S2MSI1C", shp = None,
-                         max_cc = 90, tile = None, filter_date = True):
+                         max_cc = 90, tile = None, filter_date = True,
+                         filter_baseline = True):
     
     """Returns list of matching Sentinel-2 scenes for a selected period and
         for a specific area (defined from a shapefile). The username and
@@ -56,7 +60,8 @@ def query_cdse(date_start, date_end, username, psw,
     """   
     
     # Define supported data collections
-    allowed_collections = ["S2MSI1C", "SY_2_SYN___", "LANDSAT-5", "LANDSAT-7", "LANDSAT-8-ESA"]
+    allowed_collections = ["S2MSI1C","S2MSI2A", "SY_2_SYN___", "LANDSAT-5", 
+                           "LANDSAT-7", "LANDSAT-8-ESA"]
     
     if data_collection not in allowed_collections:
         print(f"Allowed data collections: {allowed_collections}")
@@ -103,7 +108,7 @@ def query_cdse(date_start, date_end, username, psw,
 
 
     # query for SENTINEL-2 or SENTINEL-3 data
-    if data_collection == 'S2MSI1C' or data_collection=='SY_2_SYN___':
+    if data_collection in ['S2MSI1C',"S2MSI2A",'SY_2_SYN___']:
         query = ('').join([f"https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$filter=",
                            "Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'productType'",
                            " and att/OData.CSC.StringAttribute/Value eq '",
@@ -157,18 +162,31 @@ def query_cdse(date_start, date_end, username, psw,
     
     products = pd.DataFrame.from_dict(json['value'])
     
-     
-    if filter_date and not products.empty:
-        # keep last processing date ( or newest Processing Baseline Nxxxx)
-        
-        products["commonName"] = [('_').join([f.split('_')[i] for i in[0,1,2,4,5]]) for f in products['Name']]
-        
+    if data_collection in ["S2MSI1C", "S2MSI2A"]:
+        # ---- 1️⃣ Filter by processing baseline (keep newest) ----
+        if filter_baseline and not products.empty:
+            before = len(products)
+            products = get_filtered_baseline(products)
+            after = len(products)
+            removed = before - after
+    
+            print(f"Baseline filter: removed {removed} scenes "
+                  f"({after}/{before} remaining)")
+            products = products.reset_index(drop=True)
+    
+        # ---- 2️⃣ Filter by geometry overlap (same date, same scene) ----
+        if filter_date and not products.empty:
+            before = len(products)
+            products = get_filtered_date(products)
+            after = len(products)
+            removed = before - after
+    
+            print(f"Date/overlap filter: removed {removed} scenes "
+                  f"({after}/{before} remaining)")
+            products = products.reset_index(drop=True)
 
-        products = products.sort_values(by='Name')
-        products_fltd = products.drop_duplicates(subset='commonName', keep='last')
-        
-        products = products_fltd
-        products_fltd = products_fltd.reset_index(drop=True, inplace=True)
+
+     
     
 
     print('\n' + '='*60)
@@ -290,6 +308,13 @@ def download_cdse(s2List, outdir, username, psw):
 
      
 
+
+
+
+ 
+
+
+
 if __name__ == "__main__":   
         
     """
@@ -301,17 +326,17 @@ if __name__ == "__main__":
     
     
     # dates for the query/download
-    date_start = '2025-06-01'
-    date_end = '2025-06-03'
+    date_start = '2015-01-23'
+    date_end = '2025-03-24'
     
     
-    tile = 'T30SVF'
+    tile = 'T32TNS'
     
     # shapefile wth the AOI
-    shp = r'/mnt/CEPH_PROJECTS/OEMC/CODE/cdse_download/SierraNevada/SierraNevada.shp'
+    shp = None #r'/mnt/CEPH_PROJECTS/SNOWCOP/Paloma/Area06/extent/area06.shp'
     
     # directory where you want to download your data
-    outdir = r'/mnt/CEPH_PROJECTS/PROSNOW/MRI_Andes/Landsat_raw/Landsat-9/' + tile
+    outdir = r'/mnt/CEPH_PROJECTS/SNOWCOP/test/' + tile
   
     
     # it is possible to query also other collection (default is S2MSI1C)
@@ -319,9 +344,17 @@ if __name__ == "__main__":
                         date_end, 
                         os.getenv("CDSE_USERNAME"), 
                         os.getenv("CDSE_PASSWORD"), 
+                        data_collection = "S2MSI1C",
                         shp=shp,
-                        max_cc = 90, 
+                        max_cc = 100, 
                         tile=tile, 
-                        filter_date = False) 
-    
+                        filter_baseline = True,
+                        filter_date = True) 
+
     # download_cdse(s2List, outdir, os.getenv("CDSE_USERNAME"), os.getenv("CDSE_PASSWORD"))      
+    
+    
+
+
+
+

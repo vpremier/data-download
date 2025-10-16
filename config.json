@@ -1,14 +1,14 @@
 { 
-  "shapefile": "/mnt/CEPH_PROJECTS/PROSNOW/1.data/shapefile/Dischma/Dischma.shp",
+  "shapefile": "/mnt/CEPH_PROJECTS/SNOWCOP/AOI/Maipo_subbasins/Maipo-sub.shp",
   "output_directory": "/mnt/CEPH_PROJECTS/PROSNOW/raw_data",
-  "date_start": "2022-09-01",
-  "date_end": "2024-09-01",
-  "query_landsat": true,
-  "query_sentinel2": false,
-  "download_landsat": true,
-  "download_sentinel2": false,
-  "max_cloudcover": 80,
+  "date_start": "2023-04-01",
+  "date_end": "2025-03-31",
+  "query_landsat": false,
+  "query_sentinel2": true,
+  "download_landsat": false,
+  "download_sentinel2": true,
+  "max_cloudcover": 100,
   "landsat_satellite": [],
   "s2_tile_list": [],
-  "landsat_tile_list": ["193028", "194027"]
+  "landsat_tile_list": []
 }
