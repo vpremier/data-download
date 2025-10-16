@@ -1,53 +1,56 @@
 #!/bin/bash
 
-# Environment name
-ENV_NAME="microenv"
+# ==============================================================
+# Sentinel-2/Landsat Downloader Environment Setup Script
+# ==============================================================
+
+# Environment name and Python version
+ENV_NAME="download"
 PYTHON_VERSION="3.10"
 
-# Remove old environment if it exists
-echo "Removing any existing environment: $ENV_NAME"
-conda remove -y -n $ENV_NAME --all
+echo "--------------------------------------------------------------"
+echo "🔧 Setting up conda environment: $ENV_NAME (Python $PYTHON_VERSION)"
+echo "--------------------------------------------------------------"
 
-# Configure channels
+# 1️⃣ Remove old environment if it exists
+if conda env list | grep -q "$ENV_NAME"; then
+    echo "Removing existing environment: $ENV_NAME"
+    conda remove -y -n $ENV_NAME --all
+fi
+
+# 2️⃣ Configure conda channels
 echo "Configuring conda channels..."
 conda config --add channels conda-forge
 conda config --add channels defaults
 conda config --set channel_priority strict
 
-# Create the new environment
-echo "Creating environment $ENV_NAME with Python $PYTHON_VERSION..."
+# 3️⃣ Create a new environment
+echo "Creating environment $ENV_NAME..."
 conda create -y -n $ENV_NAME python=$PYTHON_VERSION
 
-# Activate the environment
+# 4️⃣ Activate the environment
+echo "Activating environment..."
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate $ENV_NAME
 
-# Install required packages
-echo "Installing required packages..."
-conda install -y \
-  numpy \
-  pandas \
-  xarray \
-  scipy \
-  rasterio \
-  rioxarray \
-  affine \
-  pyproj \
-  matplotlib \
-  tqdm \
-  joblib \
-  pvlib \
-  gdal \
-  zarr \
-  fsspec \
-  s3fs \
-  dask \
-  distributed \
-  netCDF4 \
-  h5netcdf
+# 5️⃣ Install required packages
+echo "Installing required packages from conda-forge..."
 
-# Optional: install spyder if you want an IDE in this environment
+conda install -y -c conda-forge \
+    geopandas \
+    pandas \
+    shapely \
+    matplotlib \
+    tqdm \
+    requests \
+    python-dotenv
+
+# 6️⃣ (Optional) Install Spyder IDE
+# Uncomment this line if you want Spyder in the environment
 conda install -y spyder
 
-echo "Environment '$ENV_NAME' is ready with Python $PYTHON_VERSION."
+echo "--------------------------------------------------------------"
+echo "✅ Environment '$ENV_NAME' is ready with Python $PYTHON_VERSION."
+echo "   Installed packages: geopandas, pandas, shapely, matplotlib, tqdm, requests, python-dotenv"
+echo "--------------------------------------------------------------"
 

@@ -75,6 +75,17 @@ def get_filtered_baseline(products):
         products[~products["commonName"].isin(multi_baseline)],
         products_unique
     ]).sort_values(by=["commonName"])
+    
+    
+    before = len(products)
+    after = len(products_fltd)
+    removed = before - after
+
+    print(f"Baseline filter: removed {removed} scenes "
+          f"({after}/{before} remaining)")
+    
+    products_fltd = products_fltd.reset_index(drop=True)
+            
 
     return products_fltd
 
@@ -147,13 +158,26 @@ def get_filtered_date(products):
 
                 # If they overlap almost perfectly, mark one as redundant
                 if overlap >= tol:
-                    keep_flags[j] = False
-                    print(f"{cname}: overlap={overlap:.5f} → removing one duplicate")
+                    # If overlap is nearly perfect → keep the larger footprint
+                    if g1.area >= g2.area:
+                        # g1 is larger → remove g2
+                        keep_flags[j] = False
+                        print(f"{cname}: overlap={overlap:.5f} → removing smaller geometry (j)")
+                    else:
+                        # g2 is larger → remove g1
+                        keep_flags[i] = False
+                        print(f"{cname}: overlap={overlap:.5f} → removing smaller geometry (i)")
 
         # Retain only non-redundant geometries for this scene
         to_keep = group.loc[keep_flags]
         keep_rows.extend(to_keep.index.tolist())
         
+
+
+    # Keep only non-redundant geometries
+    to_keep = group.loc[keep_flags]
+    keep_rows.extend(to_keep.index.tolist())
+
 
 
     # --- 5️⃣ Build filtered GeoDataFrame and map back to original products ---
@@ -188,9 +212,55 @@ def get_filtered_date(products):
     #     plt.tight_layout()
     #     plt.show()
 
+
+    before = len(products)
+    after = len(products_fltd)
+    removed = before - after
+       
+    print(f"Date/footprint filter: removed {removed} scenes "
+          f"({after}/{before} remaining)")
+    
+    products_fltd = products_fltd.reset_index(drop=True)
+ 
     return products_fltd
 
 
 
+
+def filter_RON(products, RON_list):
+    """
+    Filter Sentinel-2 products by Relative Orbit Number (RON).
+
+    Parameters
+    ----------
+    products : pd.DataFrame
+        DataFrame containing at least a 'Name' column (e.g., 'S2A_MSIL1C_20240704T101031_N0500_R022_T32TPS_20231011T134419.SAFE').
+    RON_list : list, optional
+        List of RON strings (e.g., ['R022', 'R051']) to keep. 
+        If None or empty, the function returns all products unchanged.
+
+    Returns
+    -------
+    pd.DataFrame
+        Filtered DataFrame containing only rows with RON in RON_list.
+    """
+
+    # ---- Extract the RON code from the product name ----
+    products["RON"] = products["Name"].str.split("_").str[4]
+
+
+    before = len(products)
+    products_fltd = products[products["RON"].isin(RON_list)]
+    after = len(products_fltd)
+    removed = before - after
+    
+    print(f"RON filter: removed {removed} scenes "
+          f"({after}/{before} remaining)")
+
+    products_fltd = products_fltd.reset_index(drop=True)
+
+    return products_fltd
+
+      
 
 

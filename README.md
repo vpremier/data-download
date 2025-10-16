@@ -41,10 +41,12 @@ cd data-download/
 To set up the recommended Conda environment:
 
 ```bash
-conda env create --name download --file=download.yml
-conda activate download
+# From the project root
+chmod +x setup_download_env.sh
+./setup_download_env.sh
 ```
 
+Follow any on-screen instructions that the script prints (e.g., activating a conda/virtualenv).
 Alternatively, you can create your own Conda environment and install the required dependencies manually. Add any extra libraries if needed.
 
 ---

@@ -22,7 +22,7 @@ from sentinel_filters import *
 def query_cdse(date_start, date_end, username, psw, 
                          data_collection = "S2MSI1C", shp = None,
                          max_cc = 90, tile = None, filter_date = True,
-                         filter_baseline = True):
+                         filter_baseline = True, RON_list = None):
     
     """Returns list of matching Sentinel-2 scenes for a selected period and
         for a specific area (defined from a shapefile). The username and
@@ -51,7 +51,14 @@ def query_cdse(date_start, date_end, username, psw,
         tile : str, optional
             specific tile to be downloaded
         filter_date : bool, optional
-            whether to filter double dates, by keeping the last processing time
+            whether to filter double dates, if their footprints overlap. 
+            Keep the biggest footprint. Only for Sentinel-2
+        filter_baseline : bool, optional
+            whether to filter double baseline for the same date. 
+            Only for Sentinel-2
+        RON_list : list, optional
+            whether to filter on a list of relative orbit numbers (RON).
+            Only for Sentinel-2
         
         Returns
         -------
@@ -163,28 +170,19 @@ def query_cdse(date_start, date_end, username, psw,
     products = pd.DataFrame.from_dict(json['value'])
     
     if data_collection in ["S2MSI1C", "S2MSI2A"]:
-        # ---- 1️⃣ Filter by processing baseline (keep newest) ----
+        # ---- Filter by processing baseline (keep newest) ----
         if filter_baseline and not products.empty:
-            before = len(products)
             products = get_filtered_baseline(products)
-            after = len(products)
-            removed = before - after
-    
-            print(f"Baseline filter: removed {removed} scenes "
-                  f"({after}/{before} remaining)")
-            products = products.reset_index(drop=True)
-    
-        # ---- 2️⃣ Filter by geometry overlap (same date, same scene) ----
-        if filter_date and not products.empty:
-            before = len(products)
-            products = get_filtered_date(products)
-            after = len(products)
-            removed = before - after
-    
-            print(f"Date/overlap filter: removed {removed} scenes "
-                  f"({after}/{before} remaining)")
-            products = products.reset_index(drop=True)
 
+        # ---- Filter by geometry overlap (same date, same scene, keep the biggest) ----
+        if filter_date and not products.empty:
+            products = get_filtered_date(products)
+
+        # ---- Filter by RON ----
+        if RON_list:
+            products = filter_RON(products, RON_list)
+
+            
 
      
     
@@ -349,7 +347,8 @@ if __name__ == "__main__":
                         max_cc = 100, 
                         tile=tile, 
                         filter_baseline = True,
-                        filter_date = True) 
+                        filter_date = True,
+                        RON_list = ['R065']) 
 
     # download_cdse(s2List, outdir, os.getenv("CDSE_USERNAME"), os.getenv("CDSE_PASSWORD"))      
     
