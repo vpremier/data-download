@@ -324,11 +324,11 @@ if __name__ == "__main__":
     
     
     # dates for the query/download
-    date_start = '2015-01-23'
-    date_end = '2025-03-24'
+    date_start = '2025-03-25'
+    date_end = '2025-03-26'
     
     
-    tile = 'T32TNS'
+    tile = 'T32TQR'
     
     # shapefile wth the AOI
     shp = None #r'/mnt/CEPH_PROJECTS/SNOWCOP/Paloma/Area06/extent/area06.shp'
@@ -348,7 +348,7 @@ if __name__ == "__main__":
                         tile=tile, 
                         filter_baseline = True,
                         filter_date = True,
-                        RON_list = ['R065']) 
+                        RON_list = []) 
 
     # download_cdse(s2List, outdir, os.getenv("CDSE_USERNAME"), os.getenv("CDSE_PASSWORD"))      
     

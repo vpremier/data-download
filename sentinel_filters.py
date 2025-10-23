@@ -174,12 +174,6 @@ def get_filtered_date(products):
         
 
 
-    # Keep only non-redundant geometries
-    to_keep = group.loc[keep_flags]
-    keep_rows.extend(to_keep.index.tolist())
-
-
-
     # --- 5️⃣ Build filtered GeoDataFrame and map back to original products ---
     gdf_fltd = gdf.loc[keep_rows]
 

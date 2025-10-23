@@ -34,9 +34,9 @@ source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate $ENV_NAME
 
 # 5️⃣ Install required packages
-echo "Installing required packages from conda-forge..."
+echo "Installing required packages ..."
 
-conda install -y -c conda-forge \
+pip install \
     geopandas \
     pandas \
     shapely \
@@ -47,7 +47,7 @@ conda install -y -c conda-forge \
 
 # 6️⃣ (Optional) Install Spyder IDE
 # Uncomment this line if you want Spyder in the environment
-conda install -y spyder
+pip install spyder
 
 echo "--------------------------------------------------------------"
 echo "✅ Environment '$ENV_NAME' is ready with Python $PYTHON_VERSION."
