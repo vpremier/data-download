@@ -184,9 +184,6 @@ def query_cdse(date_start, date_end, username, psw,
 
             
 
-     
-    
-
     print('\n' + '='*60)
     print(f'{data_collection} Query Summary')
     print('='*60)
@@ -324,11 +321,11 @@ if __name__ == "__main__":
     
     
     # dates for the query/download
-    date_start = '2025-03-25'
-    date_end = '2025-03-26'
+    date_start = '2025-10-10'
+    date_end = '2025-10-11'
     
     
-    tile = 'T32TQR'
+    tile = 'T32TNS'
     
     # shapefile wth the AOI
     shp = None #r'/mnt/CEPH_PROJECTS/SNOWCOP/Paloma/Area06/extent/area06.shp'
@@ -342,7 +339,7 @@ if __name__ == "__main__":
                         date_end, 
                         os.getenv("CDSE_USERNAME"), 
                         os.getenv("CDSE_PASSWORD"), 
-                        data_collection = "S2MSI1C",
+                        data_collection = "S2MSI2A",
                         shp=shp,
                         max_cc = 100, 
                         tile=tile, 
@@ -350,7 +347,7 @@ if __name__ == "__main__":
                         filter_date = True,
                         RON_list = []) 
 
-    # download_cdse(s2List, outdir, os.getenv("CDSE_USERNAME"), os.getenv("CDSE_PASSWORD"))      
+    download_cdse(s2List, outdir, os.getenv("CDSE_USERNAME"), os.getenv("CDSE_PASSWORD"))      
     
     
 

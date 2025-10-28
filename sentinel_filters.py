@@ -136,7 +136,7 @@ def get_filtered_date(products):
 
     # --- 4️⃣ Loop through each group of duplicates to remove near-identical geometries ---
     keep_rows = []
-    tol = 0.999  # Overlap tolerance (99.9% overlap → considered identical)
+    tol = 0.95  # Overlap tolerance (99.9% overlap → considered identical)
 
     for cname, group in gdf.groupby("commonName"):
         if len(group) == 1:
