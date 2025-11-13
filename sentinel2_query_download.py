@@ -101,7 +101,8 @@ def query_cdse(date_start, date_end, username, psw,
         
     if shp is None:  
         boundsdata=box(*[-180,-90,180, 90]).wkt
-    else:
+        
+    elif isinstance(shp, (str, os.PathLike)) and os.path.exists(shp):
         # search by polygon, time, and CDSE query keywords
         gdf = gpd.read_file(shp)
         
@@ -110,6 +111,18 @@ def query_cdse(date_start, date_end, username, psw,
             gdf = gdf.to_crs('EPSG:4326') 
             
         boundsdata=box(*gdf.total_bounds).wkt
+        
+    elif isinstance(shp, gpd.GeoDataFrame):
+        gdf = shp
+  
+        # ensure WGS84 CRS
+        if gdf.crs is not None and gdf.crs.to_string() != 'EPSG:4326':
+            gdf = gdf.to_crs('EPSG:4326')
+         
+        boundsdata=box(*gdf.total_bounds).wkt
+
+    else:
+         raise ValueError(f"Unsupported input type for 'shp': {type(shp)}")
     
 
 
@@ -321,11 +334,11 @@ if __name__ == "__main__":
     
     
     # dates for the query/download
-    date_start = '2025-10-10'
-    date_end = '2025-10-11'
+    date_start = '2025-08-05'
+    date_end = '2025-08-06'
     
     
-    tile = 'T32TNS'
+    tile = 'T32TPS'
     
     # shapefile wth the AOI
     shp = None #r'/mnt/CEPH_PROJECTS/SNOWCOP/Paloma/Area06/extent/area06.shp'
@@ -347,7 +360,7 @@ if __name__ == "__main__":
                         filter_date = True,
                         RON_list = []) 
 
-    download_cdse(s2List, outdir, os.getenv("CDSE_USERNAME"), os.getenv("CDSE_PASSWORD"))      
+    # download_cdse(s2List, outdir, os.getenv("CDSE_USERNAME"), os.getenv("CDSE_PASSWORD"))      
     
     
 

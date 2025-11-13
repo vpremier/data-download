@@ -204,12 +204,9 @@ def query_landsat(date_start, date_end, username, token, shp = None,
      
     if shp is None:          
         # Bounding Box Coordinates
-        lat_min = -90
-        lon_min = -180
-        lat_max = 180
-        lon_max = 90
+        lat_min, lon_min, lat_max, lon_max = -90, -180, 90, 180
         
-    else:
+    elif isinstance(shp, (str, os.PathLike)) and os.path.exists(shp):
         #read the shapefile
         gdf = gpd.read_file(shp)
         
@@ -218,11 +215,21 @@ def query_landsat(date_start, date_end, username, token, shp = None,
             gdf = gdf.to_crs('EPSG:4326')  
         
         # Bounding Box Coordinates
-        lat_min = gdf.bounds.miny[0]
-        lon_min = gdf.bounds.minx[0]
-        lat_max = gdf.bounds.maxy[0]
-        lon_max = gdf.bounds.maxx[0]
+        bounds = gdf.total_bounds  # [minx, miny, maxx, maxy]
+        lon_min, lat_min, lon_max, lat_max = bounds
         
+    # shp is already a geometry (shapely, GeoSeries, or GeoDataFrame)
+    elif isinstance(shp, gpd.GeoDataFrame):
+        gdf = shp
+  
+        # ensure WGS84 CRS
+        if gdf.crs is not None and gdf.crs.to_string() != 'EPSG:4326':
+            gdf = gdf.to_crs('EPSG:4326')
+        
+        bounds = gdf.total_bounds
+        lon_min, lat_min, lon_max, lat_max = bounds
+    else:
+        raise ValueError(f"Unsupported input type for 'shp': {type(shp)}")
     
     if sat == []:
         sat = ['LT05','LE07','LC08','LC09']
